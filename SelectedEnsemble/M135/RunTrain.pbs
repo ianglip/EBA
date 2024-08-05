@@ -1,0 +1,41 @@
+#!/bin/bash
+#PBS -m abe
+## Mail to user
+#PBS -M jiffriya.cader@griffithuni.edu.au
+## Job name
+#PBS -N  MyTrain135
+#PBS -q dljun
+##PBS -q gpuq2
+##PBS -q gpuq
+
+##PBS -q workq
+### Number of nodes:Number of CPUs:Number of threads per node. If not using gpu,
+###you should not request ngpus
+#PBS -l select=1:ncpus=1:ngpus=1:mem=32gb,walltime=40:00:00
+### Add current shell environment to job (comment out if not needed)
+# The job's working directory
+cd $PBS_O_WORKDIR
+
+
+module load anaconda3/2022.10
+#source /usr/local/bin/s3proxy.sh
+#module load cudnn/8.9.2
+source activate TorchV100local
+#source activate TorchV100local1
+#source activate torchenv
+#source activate tfV100local
+#module load cuda/11.4
+module load cudnn/8.9.2
+
+
+###########
+#module load anaconda3/2019.07py3
+#source /usr/local/bin/s3proxy.shy
+#source activate tensorflow-gpu
+#source activate tgpu 
+#module load cuda/11.4 
+
+python3 /export/home/s5274138/CaplaEnsemple/NewTrain/M135/Train135.py
+#Verify Install
+#python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+##python3 /lscratch/s2594054/Nick/DeepModels/keypoints/baseline_main.py
