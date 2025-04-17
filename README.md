@@ -13,12 +13,6 @@ The EBA method uses five input features, which are combined in different ways to
     *   Concatenate the 9D one-hot vector and the 8D vector to create a 17D feature vector for each atom.
     *   If a ligand has fewer than 50 heavy atoms, pad the matrix. The final representation is a matrix of size 50 x 17.
 
-*   **Ligand SMILES (s):**
-    *   Obtain the SMILES string for the ligand.
-    *   Represent each character in the SMILES string with a unique integer from 1 to 64, based on a predefined alphabet.
-    *   Encode each character using a 64D one-hot vector.
-    *   If the SMILES string has fewer than 150 characters, pad the matrix. The final representation is a matrix of size 150 x 64.
-
 *   **Angles (a):**
     *   Calculate the angle between a Cα atom of a residue in the protein, a ligand atom (C, N, O, or S), and the Cα atom of the consecutive residue.
     *   Discretize the angle values into 41 bins: 40 bins covering the range from 0° to 20° with an interval of 0.5°, and one bin for values larger than 20°.
@@ -32,6 +26,13 @@ The EBA method uses five input features, which are combined in different ways to
         *   Physicochemical properties (11D one-hot vector for polar, non-polar, basic, acidic, and seven clusters based on dipoles and side chain volumes).
     *   Concatenate these three features to create a 40D feature vector for each residue.
     *   If the protein has fewer than 1000 residues, pad the matrix. The final representation is a matrix of size 1000 x 40.
+
+*   **Ligand SMILES (s):**
+    *   Obtain the SMILES string for the ligand.
+    *   Represent each character in the SMILES string with a unique integer from 1 to 64, based on a predefined alphabet.
+    *   Encode each character using a 64D one-hot vector.
+    *   If the SMILES string has fewer than 150 characters, pad the matrix. The final representation is a matrix of size 150 x 64.
+
 
 *   **Pocket (t):**
     *   Represent the pocket region with the same features as the protein (amino acid sequence, SSEs, and physicochemical properties).
