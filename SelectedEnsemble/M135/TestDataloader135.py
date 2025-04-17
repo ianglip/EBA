@@ -1,13 +1,5 @@
-
-
-##############
-#1LigandAtom
-#3Protein
-#5 Pocket
-
 import pickle
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
@@ -41,10 +33,8 @@ from M135.Testconfig135_1 import (
 LENGTH = 1000
 P_FDIM = 58
 
-
 #BATCH_SIZE = 16
 #TOTAL_EPOCH = 200
-
 
 ROOT = Path("/home/mac/Research2023/1DCNN-Angle/JuliaFeature")
 DATASET_ROOT = ROOT / "Features"
@@ -84,7 +74,6 @@ def label_smiles(line, max_smi_len):
         X[i] = CHAR_SMI_SET[ch] - 1
 
     return X
-
             
 def map_to_bins( angle, bins_ranges, step, max_val):
 #def map_to_bins( angle, bins_ranges, step, max_val):
@@ -100,17 +89,13 @@ def map_to_bins( angle, bins_ranges, step, max_val):
      return B       
             
 class CustomDataset135(Dataset):
-    
-    
     #def __init__(self, pid_path: Path, label_path: Path):
     #def __init__(self, pid_path: Path, label_path: Path):
     def __init__(self, pid_path: Path ):
         #print("Loading data")
         
-       
         all_pids = np.loadtxt(fname=str(TEST_SET_LIST), dtype='str').tolist()
         #all_pids: list = np.loadtxt(fname=str(pid_path.absolute()), dtype='str').tolist()
-        
         
         #all_pids: list = np.loadtxt(fname=str(pid_path.absolute()), dtype='str').tolist()
         #y_all: list = np.loadtxt(fname=str(label_path.absolute()), dtype='float').tolist()
@@ -125,10 +110,7 @@ class CustomDataset135(Dataset):
         self.pp_data = np.zeros((len(all_pids), max_seq_len, PT_FEATURE_SIZE))
         
         self.y_labels = []
-       
-       
-     
-        
+
         #ligands_df = pd.read_csv( ROOT / "smi.csv")
         """ligands_df = pd.read_csv( ROOT / "training_Validation_smi.txt", delimiter='\t')
         ligands = {i["pdbid"]: i["smiles"] for _, i in ligands_df.iterrows()}
@@ -136,15 +118,12 @@ class CustomDataset135(Dataset):
         #self.max_smi_len = max_smi_len
         #smi = ligands
         
-        
         affinity = {}
         affinity_df = pd.read_csv(ROOT / "affinity_data.txt", delimiter='\t')
         for _, row in affinity_df.iterrows():
             affinity[row[0]] = row[1]
         #self.affinity = affinity
         affinity = affinity
-        
-        
         
         for i, pid in enumerate(all_pids):
             print(pid)
@@ -162,10 +141,7 @@ class CustomDataset135(Dataset):
                 self.ll_data2[i, :, :] = ll_info[ :LL_LENGTH, :]
             else:
                 self.ll_data2[i, :ll_info.shape[0], :] = ll_info[:,:]
-            
-            
-            
-            
+
             """with open(f"{ANGLE_FEATURE_PATH.absolute()}/{pid}_angle_info.pkl", "rb") as dif:
                 self.angle_info = pickle.load(dif)   #pl_angle Dim 40 is ok or pl_angle_1D
                 #self.LenangleBin.append(len(self.angle_info['BinAngle1D']))
@@ -191,28 +167,11 @@ class CustomDataset135(Dataset):
             seq_tensor[:len(_seq_tensor)] = _seq_tensor
             self.pp_data[i] =  seq_tensor 
             
-
-            
-            
-            
-           
         np.savetxt( CHECKPOINT_PATH1 / "Test2016_290label.lst",  self.y_labels, delimiter='\t', fmt='%f')
         #np.savetxt( CHECKPOINT_PATH1 / "lengthDistan.lst",  self.LenDistBin, delimiter='\t', fmt='%f')
         #*************************************************
 
-
-        
-            
-        
-        
-        
-    
-   
-
     def __getitem__(self, idx):
-      
-        
-        
         #ll1 = np.int32(self.ll_data1[idx, :])
         ll2 = np.float32(self.ll_data2[idx, :])
         #al = np.int32(self.angle_data[idx, :])
@@ -223,8 +182,6 @@ class CustomDataset135(Dataset):
     def __len__(self):
         return len(self.y_labels)
     
-    
-    
 """from torch.utils.data import DataLoader
 dataloader = DataLoader(
     dataset=CustomDataset(pid_path=TRAIN_SET_LIST, max_seq_len=1000, max_smi_len=150, PT_FEATURE_SIZE=40),
@@ -234,9 +191,6 @@ dataloader = DataLoader(
 
 my_instance = CustomDataset(TRAIN_SET_LIST,max_seq_len=1000, max_smi_len=150, PT_FEATURE_SIZE=40)
 
-
 angle2=my_instance.Bin_angle_data
 ll=my_instance.ll_data
 pp=my_instance.pp_data"""
-
- 

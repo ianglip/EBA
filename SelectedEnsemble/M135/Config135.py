@@ -1,9 +1,3 @@
-
-##############
-#1LigandAtom
-#3Protein
-#5 Pocket
-
 from pathlib import Path
 
 BATCH_SIZE =32#64#32#4#8#16

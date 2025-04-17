@@ -1,8 +1,3 @@
-##############
-#1LigandAtom
-#3Protein
-#5 Pocket
-
 import pickle
 from pathlib import Path
 

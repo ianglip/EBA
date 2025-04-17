@@ -1,16 +1,5 @@
-
-
-
-
-##############
-#1 Ligand Atom
-#3 Protein
-#4 Ligand SMILES
-#5 Pocket
-
 import pickle
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
@@ -45,10 +34,8 @@ from M1345.Testconfig1345_1 import (
 LENGTH = 1000
 P_FDIM = 58
 
-
 #BATCH_SIZE = 16
 #TOTAL_EPOCH = 200
-
 
 ROOT = Path("/home/mac/Research2023/1DCNN-Angle/JuliaFeature")
 DATASET_ROOT = ROOT / "Features"
@@ -76,16 +63,6 @@ CHAR_SMI_SET = {"(": 1, ".": 2, "0": 3, "2": 4, "4": 5, "6": 6, "8": 7, "@": 8,
                 "S": 49, "U": 50, "W": 51, "Y": 52, "[": 53, "]": 54, "a": 55, "c": 56,
                 "e": 57, "g": 58, "i": 59, "m": 60, "o": 61, "s": 62, "u": 63, "y": 64} 
 
-"""CHAR_SMI_SET = {"(": 1, ".": 2, "0": 3, "2": 4, "4": 5, "6": 6, "8": 7, "@": 8,
-                "B": 9, "D": 10, "F": 11, "H": 12, "L": 13, "N": 14, "P": 15, "R": 16,
-                "T": 17, "V": 18, "Z": 19, "\\": 20, "b": 21, "d": 22, "f": 23, "h": 24,
-                "l": 25, "n": 26, "r": 27, "t": 28, "#": 29, "%": 30, ")": 31, "+": 32,
-                "-": 33, "/": 34, "1": 35, "3": 36, "5": 37, "7": 38, "9": 39, "=": 40,
-                "A": 41, "C": 42, "E": 43, "G": 44, "I": 45, "K": 46, "M": 47, "O": 48,
-                "S": 49, "U": 50, "W": 51, "Y": 52, "[": 53, "]": 54, "a": 55, "c": 56,
-                "e": 57, "g": 58, "i": 59, "m": 60, "o": 61, "s": 62, "u": 63, "y": 64, ":": 65, "~": 66}"""
-
-
 CHAR_SMI_SET_LEN = len(CHAR_SMI_SET)
 
 LL_FEATURE=17
@@ -99,7 +76,6 @@ def label_smiles(line, max_smi_len):
 
     return X
 
-            
 def map_to_bins( angle, bins_ranges, step, max_val):
 #def map_to_bins( angle, bins_ranges, step, max_val):
      L = len(angle)
@@ -114,17 +90,13 @@ def map_to_bins( angle, bins_ranges, step, max_val):
      return B       
             
 class CustomDataset1345(Dataset):
-    
-    
     #def __init__(self, pid_path: Path, label_path: Path):
     #def __init__(self, pid_path: Path, label_path: Path):
     def __init__(self, pid_path: Path ):
         #print("Loading data")
         
-       
         all_pids = np.loadtxt(fname=str(TEST_SET_LIST), dtype='str').tolist()
         #all_pids: list = np.loadtxt(fname=str(pid_path.absolute()), dtype='str').tolist()
-        
         
         #all_pids: list = np.loadtxt(fname=str(pid_path.absolute()), dtype='str').tolist()
         #y_all: list = np.loadtxt(fname=str(label_path.absolute()), dtype='float').tolist()
@@ -139,10 +111,7 @@ class CustomDataset1345(Dataset):
         self.pp_data = np.zeros((len(all_pids), max_seq_len, PT_FEATURE_SIZE))
         
         self.y_labels = []
-       
-       
-     
-        
+
         #ligands_df = pd.read_csv( ROOT / "smi.csv")
         #ligands_df = pd.read_csv( ROOT / "training_Validation_smi.txt", delimiter='\t')
         ligands_df = pd.read_csv( SMI_PATH, delimiter='\t')
@@ -151,15 +120,12 @@ class CustomDataset1345(Dataset):
         #self.max_smi_len = max_smi_len
         #smi = ligands
         
-        
         affinity = {}
         affinity_df = pd.read_csv(ROOT / "affinity_data.txt", delimiter='\t')
         for _, row in affinity_df.iterrows():
             affinity[row[0]] = row[1]
         #self.affinity = affinity
         affinity = affinity
-        
-        
         
         for i, pid in enumerate(all_pids):
             print(pid)
@@ -177,9 +143,6 @@ class CustomDataset1345(Dataset):
                 self.ll_data2[i, :, :] = ll_info[ :LL_LENGTH, :]
             else:
                 self.ll_data2[i, :ll_info.shape[0], :] = ll_info[:,:]
-            
-            
-            
             
             """with open(f"{ANGLE_FEATURE_PATH.absolute()}/{pid}_angle_info.pkl", "rb") as dif:
                 self.angle_info = pickle.load(dif)   #pl_angle Dim 40 is ok or pl_angle_1D
@@ -207,28 +170,11 @@ class CustomDataset1345(Dataset):
             seq_tensor[:len(_seq_tensor)] = _seq_tensor
             self.pp_data[i] =  seq_tensor 
             
-
-            
-            
-            
-           
         np.savetxt( CHECKPOINT_PATH1 / "Test2016_290label.lst",  self.y_labels, delimiter='\t', fmt='%f')
         #np.savetxt( CHECKPOINT_PATH1 / "lengthDistan.lst",  self.LenDistBin, delimiter='\t', fmt='%f')
         #*************************************************
 
-
-        
-            
-        
-        
-        
-    
-   
-
     def __getitem__(self, idx):
-      
-        
-        
         ll1 = np.int32(self.ll_data1[idx, :])
         ll2 = np.float32(self.ll_data2[idx, :])
         #al = np.int32(self.angle_data[idx, :])
@@ -239,8 +185,6 @@ class CustomDataset1345(Dataset):
     def __len__(self):
         return len(self.y_labels)
     
-    
-    
 """from torch.utils.data import DataLoader
 dataloader = DataLoader(
     dataset=CustomDataset(pid_path=TRAIN_SET_LIST, max_seq_len=1000, max_smi_len=150, PT_FEATURE_SIZE=40),
@@ -250,9 +194,6 @@ dataloader = DataLoader(
 
 my_instance = CustomDataset(TRAIN_SET_LIST,max_seq_len=1000, max_smi_len=150, PT_FEATURE_SIZE=40)
 
-
 angle2=my_instance.Bin_angle_data
 ll=my_instance.ll_data
 pp=my_instance.pp_data"""
-
- 

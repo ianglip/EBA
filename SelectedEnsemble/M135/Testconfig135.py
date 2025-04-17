@@ -1,13 +1,7 @@
-##############
-#1LigandAtom
-#3Protein
-#5 Pocket
-
 from pathlib import Path
 
-BATCH_SIZE =32#64#32#4#8#16
+BATCH_SIZE = 32 #64, 32, 48, 16
 TOTAL_EPOCH = 200
-#AngLENGTH=1800
 #max_smi_len=150
 max_pkt_len=63
 PK_FEATURE_SIZE=40
