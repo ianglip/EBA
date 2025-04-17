@@ -1,0 +1,431 @@
+
+pdbid   smiles
+mypdb   [Your Ligand SMILES String]
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+The features are numbered as:
+
+Ligands atoms (l)
+Angles (a)
+Protein (p)
+Ligand SMILES (s)
+Pocket (t)
+We are using the model ensemble FX, which corresponds to the folders:
+
+M12, M24, M234, M135, M345, M1234, and M1345
+These correspond to the following feature combinations, respectively:
+
+la, as, aps, lpt, pst, laps, lpst
+This ensemble has already been pre-trained. Now I want to use the ensemble to gather a prediction for a new ligand and protein (and its respective pocket).
+
+Review the files in the codebase, especially those under the directory "/SelectedEnsemble/". Then, provide detailed step-by-step instructions on:
+
+Which files and/or data to prepare and how
+Where (and in what format, e.g. as a string, within a specified directory, etc.) to submit my ligand, protein, and pocket for feature extraction (This may require creating new files and/or directories within the codebase and adjusting the directories for import into the respective files appropriately)
+Provide these instructions as if I am a total beginner.
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+Okay, let's break down how to use the pre-trained EBA FX ensemble to predict the binding affinity for your new protein-ligand pair. This process involves preparing your input data in the correct format and then modifying one of the existing prediction scripts to use your data.
+
+Understanding the Goal:
+
+You have a protein structure, a ligand structure, and the binding pocket identified. You want to use the provided code (specifically the FX ensemble: M12, M24, M234, M135, M345, M1234, M1345) to predict the binding affinity (likely a pKd or similar value).
+
+The Five Required Feature Types:
+
+As listed, the ensemble needs five types of input features derived from your protein, ligand, and pocket:
+
+Ligand Atoms (l): Detailed features for each atom in your ligand.
+Angles (a): Protein backbone dihedral angles (phi, psi, omega).
+Protein (p): Sequence-based features for the protein (like PSSM, secondary structure).
+Ligand SMILES (s): The SMILES string representation of your ligand.
+Pocket (t): Detailed features for each atom in the defined binding pocket of the protein.
+Crucial Point: Feature Generation is External
+
+The provided code (SelectedEnsemble directory and its subdirectories) uses these pre-computed features but does not include the scripts to generate them from raw structural files (like PDB for protein/pocket, SDF/MOL2 for ligand).
+
+The README.md gives clues about what these features contain (e.g., atom types, properties, PSSM), but you will need separate tools or scripts to create the actual feature files. This is often the most complex part. Common tools used in bioinformatics for such tasks include RDKit (for ligands), DSSP/Stride (for secondary structure), PSI-BLAST (for PSSM), Biopython, and various geometric analysis tools.
+
+Assuming you can generate these features, here's how to prepare and use them:
+
+Step 1: Generate Your Feature Files
+
+For your specific protein-ligand complex (let's give it a unique ID, e.g., mypdb):
+
+Ligand Atoms (l):
+
+Generate a NumPy array containing features for each atom in your ligand.
+Based on the README.md, this likely involves:
+A 9D one-hot vector for atom type (B, C, N, O, P, S, Se, Halogen, Metal).
+8 additional properties (aromatic, ring, H-bond donor/acceptor - binary; partial charge, hybridization, heavy degree, hetero degree - numerical).
+The final shape would be (num_ligand_atoms, 9 + 8).
+Save this array as a NumPy file: mypdb_l.npy
+Angles (a):
+
+Generate a NumPy array containing the protein backbone dihedral angles (phi, psi, omega) for each residue.
+The shape would likely be (num_protein_residues, 3). You might need to pad or truncate this to a fixed length (e.g., 1000, as seen in TestDataloader45.py's max_seq_len) depending on how the original models were trained. Check the max_seq_len values in the various Testconfig*.py references (although the files themselves aren't provided locally, the imports suggest their existence and likely define these constants). Let's assume padding/truncating to 1000 is needed.
+Save this array as a NumPy file: mypdb_a.npy (Shape: (1000, 3) or similar fixed length). Correction based on Dataloaders: Many dataloaders (e.g., M234) seem to expect angles as a 1D array of integers (perhaps encoded angle bins?). M12's al_embed uses nn.Embedding, suggesting integer inputs. You need to precisely match the format expected by the specific CustomDataset classes. Let's assume it needs to be encoded integers. Shape: (1000,). Save as mypdb_a.npy.
+Protein (p):
+
+Generate a NumPy array containing sequence-based features for each protein residue (e.g., PSSM, secondary structure encoding, solvent accessibility).
+The README.md mentions these. The exact dimension will depend on the specific features used during training (e.g., 20 for PSSM + 3 for SS + 1 for SA = 24 features). Let's assume a feature size PT_FEATURE_SIZE (e.g., 40 or 58, seen in TestDataloader45.py and M234).
+Again, you likely need to pad/truncate to the fixed max_seq_len (e.g., 1000).
+
+Ligand SMILES (s):
+
+Get the SMILES string for your ligand. Example: CCO for ethanol.
+This isn't saved per-complex but in a central file (see Step 2).
+Pocket (t):
+
+Generate a NumPy array containing features for the atoms identified as being in the binding pocket.
+The features per atom are likely similar to the Ligand Atom features (type, properties).
+You might need to pad/truncate to a fixed length (e.g., max_pkt_len, seen in various config imports). Let's assume 63 based on model12.py attention analysis comment temp.shape == (290,2,63).
+The feature size per atom is PK_FEATURE_SIZE (e.g., 28, seen in model45.py PK_LEN constant usage, although PK_LEN might be different from PK_FEATURE_SIZE). Let's assume 28.
+Save this array as a NumPy file: mypdb_t.npy (Shape: (63, 28) or similar fixed dimensions).
+
+Step 2: Organize Your Files
+
+The prediction scripts and dataloaders expect files in specific locations, originally defined in Testconfig*.py files pointing to /export/home/.... Since you don't have that structure, you need to:
+
+1. Create a Data Directory: Inside SelectedEnsemble, create a new directory to hold your input data and results. Let's call it MyPrediction.
+
+```
+SelectedEnsemble/
+├── MyPrediction/
+│   ├── features/
+│   │   ├── ligand_atoms/
+│   │   ├── angles/
+│   │   ├── protein/
+│   │   ├── pocket/
+│   ├── results/
+│   └── mypdb_list.lst
+│   └── smiles.txt
+│   └── mylabels.lst  (Optional, for evaluation)
+├── AX_2016.py
+├── AX_2020.py
+├── ... (other scripts)
+└── M12/
+└── M24/
+└── ... (other model folders)
+```
+
+2. Place Feature Files:
+
+Move mypdb_l.npy into MyPrediction/features/ligand_atoms/.
+Move mypdb_a.npy into MyPrediction/features/angles/.
+Move mypdb_p.npy into MyPrediction/features/protein/.
+Move mypdb_t.npy into MyPrediction/features/pocket/.
+(Repeat for multiple complexes if you have them, using their unique IDs)
+
+3. Create PDB ID List:
+Create a text file named mypdb_list.lst inside MyPrediction/.
+List the unique ID(s) of your complex(es), one ID per line. For our example:
+
+```mypdb```
+
+4. Create SMILES File:
+
+Create a text file named smiles.txt inside MyPrediction/.
+This file should map IDs to SMILES strings, typically tab-separated.
+
+```
+pdbid   smiles
+mypdb   [Your Ligand SMILES String]
+```
+
+Make sure the header pdbid\tsmiles is present if the dataloaders expect it (like pd.read_csv often does). Check TestDataloader234.py - it uses pd.read_csv(SMI_PATH, delimiter='\t') and expects columns pdbid and smiles.
+Create Labels File (Optional):
+
+5. Create Labels File (Optional):
+If you know the true binding affinity for your complex and want the script to calculate performance metrics, create a file named mylabels.lst in MyPrediction/.
+List the known affinity values, one per line, in the exact same order as the IDs in mypdb_list.lst.
+
+```8.5  # Example pKd value for mypdb```
+
+If you don't have this, the evaluation part of the script will fail or give meaningless results.
+
+Step 3: Modify the Prediction Script (AX_2016.py)
+
+This script runs the FX ensemble. You need to tell it where to find your data and models.
+
+1. Open AX_2016.py.
+
+2. Remove or Comment Out sys.path.append: The lines adding /export/home/... paths (lines 11-42 approx) are for finding modules on a specific server. Since your M* model folders are subdirectories, Python should find them. However, they also add paths for Testconfig* files which you don't have. It's cleaner to remove these sys.path.append lines entirely.
+
+3. Define Data/Model Paths: Add the following lines near the top of the script (after imports), replacing the need for the external Testconfig files:
+
+```
+from pathlib import Path
+import os # Make sure os is imported
+
+# --- START: Define Paths for Your Data ---
+
+# Base directory for your prediction data
+MY_ROOT_DIR = Path("./MyPrediction") # Path relative to AX_2016.py
+
+# Path to the list of PDB IDs you want to predict
+MY_TEST_SET_LIST = MY_ROOT_DIR / "mypdb_list.lst"
+
+# Path to the SMILES mapping file
+MY_SMI_PATH = MY_ROOT_DIR / "smiles.txt"
+
+# Paths to feature directories
+MY_FEATURE_DIR = MY_ROOT_DIR / "features"
+MY_LIGAND_ATOM_PATH = MY_FEATURE_DIR / "ligand_atoms" # Feature 'l' (Type 1)
+MY_ANGLE_PATH = MY_FEATURE_DIR / "angles"         # Feature 'a' (Type 2)
+MY_PROTEIN_PATH = MY_FEATURE_DIR / "protein"         # Feature 'p' (Type 3)
+MY_POCKET_PATH = MY_FEATURE_DIR / "pocket"          # Feature 't' (Type 5)
+
+# Path for saving results
+MY_OUTPUT_DIR = MY_ROOT_DIR / "results"
+os.makedirs(MY_OUTPUT_DIR, exist_ok=True) # Create the directory if it doesn't exist
+
+# Path to your actual affinity labels (optional, for evaluation)
+MY_LABELS_FILE = MY_ROOT_DIR / "mylabels.lst"
+
+# Define constants (check Dataloaders/Models for exact values if possible)
+# These might be needed by the CustomDataset classes. If they crash,
+# you might need to find the original values or hardcode them here.
+# Example values (GUESSES - VERIFY IF POSSIBLE!):
+MY_MAX_SEQ_LEN = 1000
+MY_MAX_PKT_LEN = 63
+MY_MAX_SMI_LEN = 150 # From M45/TestDataloader45.py
+MY_PT_FEATURE_SIZE = 58 # From M234/model234.py forward comment
+MY_PK_FEATURE_SIZE = 28 # Guess based on M45/model45.py PK_LEN usage
+MY_LL_LENGTH = 28 # Guess, often same as PK_FEATURE_SIZE for atom features
+MY_ANGLE_LENGTH = 3 # If raw angles, or size of encoding if encoded
+
+# --- END: Define Paths for Your Data ---
+
+# ... (rest of the original imports like Model12, CustomDataset12 etc.)
+```
+
+4. Update CustomDataset Instantiation:
+
+Go to the predict() function (around line 376).
+Find where each DataLoader is created. They instantiate CustomDataset* classes.
+You need to pass your paths and constants to these constructors. The original script relied on imported config variables. You'll need to modify the CustomDataset calls.
+Challenge: The CustomDataset classes in the M* folders likely read paths like ROOT, PP_PATH, LL_FEATURE_PATH, etc., directly from their own scope (expecting them to be imported from a config file). You cannot easily pass your new paths (MY_PROTEIN_PATH, etc.) as arguments unless the __init__ methods are modified.
+Workaround: The simplest (though slightly hacky) way for a beginner is to modify the CustomDataset files themselves to use your hardcoded paths, OR redefine the global path variables before creating the DataLoaders. Let's try the latter within AX_2016.py:
+
+```
+def predict():
+    # ... (load model weights as before) ...
+
+    # --- START: Override Config Paths Before Loading Data ---
+    # Make the paths globally accessible to the imported CustomDataset classes
+    # This assumes the CustomDataset classes use these specific variable names.
+    global ROOT, TEST_SET_LIST, SMI_PATH, LL_FEATURE_PATH, ANGLE_FEATURE_PATH, PP_PATH, PK_PATH
+    global CHECKPOINT_PATH1 # For saving results
+    global max_seq_len, max_pkt_len, max_smi_len, PT_FEATURE_SIZE, PK_FEATURE_SIZE, LL_LENGTH, AngLENGTH
+
+    ROOT = MY_ROOT_DIR
+    TEST_SET_LIST = MY_TEST_SET_LIST
+    SMI_PATH = MY_SMI_PATH
+    LL_FEATURE_PATH = MY_LIGAND_ATOM_PATH # Used by datasets needing feature 'l'
+    ANGLE_FEATURE_PATH = MY_ANGLE_PATH    # Used by datasets needing feature 'a'
+    PP_PATH = MY_PROTEIN_PATH             # Used by datasets needing feature 'p'
+    PK_PATH = MY_POCKET_PATH              # Used by datasets needing feature 't'
+    CHECKPOINT_PATH1 = MY_OUTPUT_DIR      # Use your output directory
+
+    # Set constants (use the MY_ values defined earlier)
+    max_seq_len = MY_MAX_SEQ_LEN
+    max_pkt_len = MY_MAX_PKT_LEN
+    max_smi_len = MY_MAX_SMI_LEN
+    PT_FEATURE_SIZE = MY_PT_FEATURE_SIZE
+    PK_FEATURE_SIZE = MY_PK_FEATURE_SIZE
+    LL_LENGTH = MY_LL_LENGTH
+    AngLENGTH = MY_ANGLE_LENGTH # Note: Config uses AngLENGTH, Dataloader might use AL_LEN
+
+    # --- END: Override Config Paths ---
+
+
+    model1_value=[]
+    # ... (rest of the model_value lists) ...
+
+    print(f"Using Test Set List: {TEST_SET_LIST}")
+    print(f"Using Protein Path (PP_PATH): {PP_PATH}")
+    # Add more prints to verify paths if needed
+
+    # Now, the DataLoader instantiations should work if the CustomDataset
+    # classes use the global variables defined above.
+    dataloader1 = DataLoader(
+        dataset=CustomDataset12(pid_path = TEST_SET_LIST) , # Assumes CustomDataset12 uses TEST_SET_LIST, LL_FEATURE_PATH, ANGLE_FEATURE_PATH etc. internally
+        batch_size=1) # Batch size MUST be 1 for prediction
+
+    # ... (similar DataLoader instantiations for dataloader2 to dataloader7) ...
+    # Example for dataloader4 (Model135 - lpt)
+    dataloader4 = DataLoader(
+        dataset=CustomDataset135(pid_path = TEST_SET_LIST), # Assumes it uses TEST_SET_LIST, LL_FEATURE_PATH, PP_PATH, PK_PATH
+         batch_size=1)
+
+    # ... rest of the prediction loops ...
+
+    # --- Modify Output File Paths ---
+    # In the loops writing "PredictedModel*.lst"
+    # Example for model 1:
+    # with open(CHECKPOINT_PATH1 / "PredictedModel1.lst", "w") as file:
+    # This should now correctly use MY_OUTPUT_DIR
+
+    # --- Modify Final Average Calculation ---
+    # The averaging calculation looks correct for FX (7 models)
+    Avg_value=(model1_value+model2_value+model3_value+model4_value+model5_value+model6_value+model7_value)/7
+
+    # --- Modify Final Prediction Output Path ---
+    # with open(CHECKPOINT_PATH1 / "FinalPredicted.lst", "w") as file:
+    # This should now correctly use MY_OUTPUT_DIR
+
+    # --- Modify Evaluation Section ---
+    # Update the path to the actual labels file
+    try:
+        # with open(CHECKPOINT_PATH1 / "Y_core2016.lst", 'r') as file: # Original line
+        with open(MY_LABELS_FILE, 'r') as file: # Modified line
+            for line in file:
+                line = line.strip() # Use strip() correctly
+                if line: # Avoid adding empty lines
+                   Actual.append(line)
+    except FileNotFoundError:
+        print(f"Labels File not found: {MY_LABELS_FILE}")
+        print("Skipping evaluation.")
+        Actual = None # Signal that evaluation can't be done
+    except Exception as e:
+        print(f"An error occurred reading labels file: {e}")
+        Actual = None
+
+    # Only perform evaluation if Actual labels were loaded
+    if Actual:
+        actual_score =np.array(Actual, dtype='float32')
+        predicted_score = np.array(predicted, dtype='float32')
+
+        # ... (calculate r, rmse, mae, mse, sd, CI) ...
+
+        # --- Modify Evaluation Output Path ---
+        # with open(CHECKPOINT_PATH1 / "Evaluate_Final.txt", 'a') as f:
+        # This should now correctly use MY_OUTPUT_DIR
+        with open(CHECKPOINT_PATH1 / "Evaluate_Final.txt", 'w') as f: # Use 'w' to overwrite for a single run
+            f.write(f"Results for Test Set: {MY_TEST_SET_LIST}\n")
+            f.write("Pearson correlation coefficient = %f \n"%(np.around( r, 3)))
+            # ... (write other metrics) ...
+    else:
+        print("No actual labels found or loaded. Final predictions saved in FinalPredicted.lst")
+
+# ... (rest of the script, including the if __name__ == "__main__": block)
+```
+
+5. Check Model Paths: Ensure the model* = '/export/home/...' lines (around 291-300) correctly point to the .pt files within your local M*/models2016/ directories. You might need to adjust these paths if they are incorrect relative to AX_2016.py. For example:
+
+```
+model12='M12/models2016/Angle01_132_0.0138.pt' # Relative path
+model24='M24/models2016/Angle01_76_0.0356.pt'  # Relative path
+# ... and so on for model234, model135, model345, model1234, model1345
+```
+
+Step 4: Run the Prediction
+
+1. Open a terminal or command prompt.
+2. Navigate to the SelectedEnsemble directory:
+
+```cd path/to/your/SelectedEnsemble```
+
+3. Run the modified script:
+
+```python AX_2016.py```
+
+Step 5: Interpret the Output
+
+If the script runs successfully:
+
+1. Navigate to the SelectedEnsemble/MyPrediction/results/ directory.
+2. FinalPredicted.lst: This file will contain the final ensemble-averaged binding affinity prediction(s). Each line corresponds to the complex ID in mypdb_list.lst.
+3. PredictedModel*.lst: These files contain the predictions from each individual model in the ensemble.
+4. Evaluate_Final.txt: If you provided a labels file (mylabels.lst), this file will contain the calculated performance metrics (Pearson R, RMSE, MAE, etc.) comparing the ensemble predictions to your true values.
+
+Important Considerations & Potential Issues:
+
+Feature Generation: This is the biggest hurdle. The accuracy of the prediction heavily depends on generating features exactly as they were generated for the original training data. Any differences in tools, parameters, or definitions will lead to poor results.
+Missing Config Files: The workaround of defining paths globally in AX_2016.py might not work if the CustomDataset classes import the config variables in a way that doesn't see the global overrides. If you get errors about missing files inside the dataloader steps, you might need to directly edit the TestDataloader*.py files in each M* directory to replace references like ROOT, PP_PATH, etc., with your actual paths (e.g., Path("../MyPrediction/features/protein")).
+Fixed Lengths/Padding: Ensure your generated .npy files match the expected dimensions (max_seq_len, max_pkt_len, feature sizes) used during training, including any padding or truncation logic.
+Dependencies: Make sure you have all necessary Python libraries installed (PyTorch, NumPy, Pandas, scikit-learn, SciPy).
+Model Weights: Double-check that the .pt model weight files exist in the specified M*/models2016/ directories.
+This detailed process should guide you through using the ensemble, but remember the critical dependency on correctly generating the input features externally. Good luck!
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+Let's begin with generating ligand's atom features (l). The publication for this model states the following:
+
+"First, each ligand atom is categorized into nine groups according to the atom type (B, C, N, O, P, S, Se, Halogen, and Metal) and encoded into a 9D one-hot vector. Next, we consider certain eight-atom properties such as aromatic, ring, hydrogen bond donor, acceptor, partial charge, hybridization, heavy degree (number of heavy atoms connected), and hetero degree (number of hydrogen atoms connected). The former four properties are encoded into binary vectors, and the latter four properties are encoded into real value vectors, thus all eight properties are represented as 8D vectors. Eventually, the concatenation of these two vectors forms a 17D feature vector. We set a maximum length of 50 heavy atoms as a larger proportion of ligands contains fewer than 50 heavy atoms and the resulting feature is represented as a matrix of size 50 × 17."
+
+Based on this, generate any necessary files in their appropriate folder locations to generate these features for my ligand's atoms, with placeholder lines and/or files where my input is required. Finally, list any library imports and other actions required from me as well.
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+Okay, let's create the script to generate the ligand atom features ('l') based on the description.
+
+1. Create the Feature Generation Script
+
+I will create a new directory scripts at the root of your workspace and place the generation script there.
+
+Created generate_ligand_features.py
+
+Okay, I have created a Python script to help you generate the ligand atom features (feature type 'l') according to the specifications you provided.
+
+1. New File Created:
+
+A new file named generate_ligand_features.py has been created inside a new directory called scripts at the root of your workspace (generate_ligand_features.py).
+
+2. What the Script Does:
+
+This script uses the RDKit library to read a ligand structure file (like SDF, MOL, or MOL2).
+For each heavy atom (up to a maximum of 50), it calculates:
+A 9-dimensional one-hot vector representing the atom type (C, N, O, Halogen, etc.).
+An 8-dimensional vector representing atom properties (aromatic, ring, H-bond donor/acceptor, partial charge, hybridization, heavy degree, hetero degree).
+It concatenates these into a 17-dimensional feature vector for each atom.
+It pads or truncates the list of atom features to ensure the final output is always a matrix of size 50x17.
+Finally, it saves this feature matrix as a Python pickle file (.pkl) in the specified output directory.
+
+3. Required Actions from You:
+
+Install RDKit: This script requires the RDKit library, which is standard for cheminformatics. If you don't have it, you'll need to install it. A common way is using Conda:
+
+```conda install -c conda-forge rdkit```
+
+(Run this command in your Conda environment terminal)
+
+Prepare Your Ligand File: You need a file containing the 3D structure of your ligand. Common formats like .sdf, .mol, or .mol2 are suitable. Make sure this file is saved somewhere accessible.
+
+Run the Script:
+
+1. Open your terminal (like PowerShell or Anaconda Prompt).
+
+2. Navigate to the root directory of your project:
+
+```cd c:\Users\ians_\EBA```
+
+3. Execute the script using python. You need to provide three pieces of information using command-line arguments:
+
+--ligand_file: The full path to your ligand structure file (e.g., C:\path\to\my\ligand.sdf). <-- Replace this placeholder path.
+--output_dir: The directory where the script should save the generated .pkl file. Based on our previous plan, this should be SelectedEnsemble\MyPrediction\features\ligand_atoms. <-- Use this specific path.
+--ligand_id: The unique identifier for your protein-ligand complex (e.g., mypdb). This will be used as the base name for the output file (e.g., mypdb.pkl). <-- Replace this placeholder ID.
+
+Here is the command structure (replace the placeholders):
+
+```python scripts\generate_ligand_features.py --ligand_file "C:\path\to\your\ligand.sdf" --output_dir "SelectedEnsemble\MyPrediction\features\ligand_atoms" --ligand_id "mypdb"```
+
+4. Output:
+
+After running the command successfully, a new file named [your_ligand_id].pkl (e.g., mypdb.pkl) will be created inside the c:\Users\ians_\EBA\SelectedEnsemble\MyPrediction\features\ligand_atoms\ directory. This .pkl file contains the 50x17 NumPy array representing the features for your ligand's atoms, ready to be used by the model ensemble.
+Let me know when you have run this step or if you want to proceed with generating the next feature type!
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
